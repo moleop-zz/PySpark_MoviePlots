@@ -1,0 +1,20 @@
+yearinput = sc.textFile("movieplots/years.txt")
+years = yearinput.filter(lambda line: '-' not in line and len(line) >= 1)
+yearranges = yearinput.filter(lambda line: '-' in line).flatMap(lambda line: range(int(line.split("-")[0]),int(line.split("-")[1])+1))
+newyears = yearranges.map(lambda x: unicode(x))
+relevantyears = years.union(newyears)
+
+file = sc.textFile("movieplots/movieplots.csv")
+movies = file.map(lambda line: line.lower().split(","))
+yearlist = relevantyears.collect()
+movies = movies.filter(lambda movie: movie[0] in yearlist or len(yearlist) == 0)
+plots = movies.map(lambda movie: movie[7].split(" "))
+plotwords = plots.flatMap(lambda plot: list(set(plot)))
+words = plotwords.map(lambda word: (word,1)).reduceByKey(lambda x,y: x+y)
+
+filterwords = sc.textFile("movieplots/filter.txt")
+filterpairs = filterwords.flatMap(lambda line: line.split(" ")).map(lambda word: (word,1))
+relevant = words.subtractByKey(filterpairs)
+
+output = relevant.takeOrdered(10, lambda (word,count): -count)
+print(output)
